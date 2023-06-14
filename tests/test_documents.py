@@ -4,10 +4,7 @@ from unittest import TestCase
 import django
 from django.db import models
 
-if django.VERSION < (4, 0):
-    from django.utils.translation import ugettext_lazy as _
-else:
-    from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import GeoPoint, InnerDoc
 from mock import patch, Mock
 
