@@ -57,12 +57,10 @@ class DocumentRegistry:
             field_instance = document.to_field(field_name, django_field)
             document._doc_type.mapping.field(field_name, field_instance)
 
-        django_attr.update({
-            'ignore_signals': getattr(django_meta, "ignore_signals", False),
-            'auto_refresh': getattr(django_meta, "auto_refresh", DEDConfig.auto_refresh_enabled()),
-            'related_models': getattr(django_meta, "related_models", []),
-            'queryset_pagination': getattr(django_meta, "queryset_pagination", None),
-        })
+        django_attr.ignore_signals = getattr(django_meta, "ignore_signals", False)
+        django_attr.auto_refresh = getattr(django_meta, "auto_refresh", DEDConfig.auto_refresh_enabled())
+        django_attr.related_models = getattr(django_meta, "related_models", [])
+        django_attr.queryset_pagination = getattr(django_meta, "queryset_pagination", None)
 
         # Add django attribute in the document class with all the django attribute
         setattr(document, 'django', django_attr)

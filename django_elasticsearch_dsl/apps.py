@@ -6,7 +6,7 @@ from elasticsearch_dsl.connections import connections
 
 class DEDConfig(AppConfig):
     name = 'django_elasticsearch_dsl'
-    verbose_name = "Django Elasticsearch DSL"
+    verbose_name = "Django elasticsearch-dsl"
     signal_processor = None
 
     def ready(self):
