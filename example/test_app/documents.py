@@ -4,13 +4,11 @@ from django_elasticsearch_dsl.registries import registry
 
 from .models import Ad, Car, Manufacturer
 
-
-car = Index('test_cars')
-car.settings(
+car_index = Index('test_cars')
+car_index.settings(
     number_of_shards=1,
     number_of_replicas=0
 )
-
 
 html_strip = analyzer(
     'html_strip',
@@ -74,47 +72,46 @@ class ManufacturerDocument(Document):
         name = "manufacturer"
 
 
-# @registry.register_document
-# class CarWithPrepareDocument(Document):
-#     manufacturer = fields.ObjectField(properties={
-#         'name': fields.TextField(),
-#         'country': fields.TextField(),
-#     })
-#
-#     manufacturer_short = fields.ObjectField(properties={
-#         'name': fields.TextField(),
-#     })
-#
-#     class Index:
-#         name = "car_with_prepare_index"
-#
-#     class Django:
-#         model = Car
-#         related_models = [Manufacturer]
-#         fields = [
-#             'name',
-#             'launched',
-#             'type',
-#         ]
-#
-#     def prepare_manufacturer_with_related(self, car, related_to_ignore):
-#         if (car.manufacturer is not None and car.manufacturer !=
-#                 related_to_ignore):
-#             return {
-#                 'name': car.manufacturer.name,
-#                 'country': car.manufacturer.country(),
-#             }
-#         return {}
-#
-#     def prepare_manufacturer_short(self, car):
-#         if car.manufacturer is not None:
-#             return {
-#                 'name': car.manufacturer.name,
-#             }
-#         return {}
-#
-#     def get_instances_from_related(self, related_instance):
-#         return related_instance.car_set.all()
+@registry.register_document
+class CarWithPrepareDocument(Document):
+    manufacturer = fields.ObjectField(properties={
+        'name': fields.TextField(),
+        'country': fields.TextField(),
+    })
+
+    manufacturer_short = fields.ObjectField(properties={
+        'name': fields.TextField(),
+    })
+
+    class Index:
+        name = "car_with_prepare_index"
+
+    class Django:
+        model = Car
+        related_models = [Manufacturer]
+        fields = [
+            'name',
+            'launched',
+            'type',
+        ]
+
+    def prepare_manufacturer_with_related(self, car, related_to_ignore):
+        if car.manufacturer is not None and car.manufacturer != related_to_ignore:
+            return {
+                'name': car.manufacturer.name,
+                'country': car.manufacturer.country,
+            }
+        return {}
+
+    def prepare_manufacturer_short(self, car):
+        if car.manufacturer is not None:
+            return {
+                'name': car.manufacturer.name,
+            }
+        return {}
+
+    def get_instances_from_related(self, related_instance):
+        return related_instance.car_set.all()
 
 
 @registry.register_document
@@ -135,14 +132,11 @@ class AdDocument(Document):
         ]
 
     class Index:
-        name = "add"
+        name = "ad"
 
 
 @registry.register_document
 class AdDocument2(Document):
-    def __init__(self, *args, **kwargs):
-        super(AdDocument2, self).__init__(*args, **kwargs)
-
     class Django:
         model = Ad
         index = 'test_ads2'
@@ -151,4 +145,4 @@ class AdDocument2(Document):
         ]
 
     class Index:
-        name = "add2"
+        name = "ad2"

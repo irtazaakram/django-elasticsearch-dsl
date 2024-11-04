@@ -1,16 +1,14 @@
 from copy import deepcopy
 
 from elasticsearch_dsl import Index as DSLIndex
-from six import python_2_unicode_compatible
 
 from .apps import DEDConfig
 from .registries import registry
 
 
-@python_2_unicode_compatible
 class Index(DSLIndex):
     def __init__(self, *args, **kwargs):
-        super(Index, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         default_index_settings = deepcopy(DEDConfig.default_index_settings())
         self.settings(**default_index_settings)
 
@@ -18,7 +16,7 @@ class Index(DSLIndex):
         """
         Extend to register the document in the global document registry
         """
-        document = super(Index, self).document(document)
+        document = super().document(document)
         registry.register_document(document)
         return document
 

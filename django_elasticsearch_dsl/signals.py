@@ -1,21 +1,21 @@
-# encoding: utf-8
 """
 A convenient way to attach django-elasticsearch-dsl to Django's signals and
 cause things to index.
 """
 
-from __future__ import absolute_import
-
-from django.db import models
-from django.apps import apps
-from django.dispatch import Signal
-from .registries import registry
-from django.core.exceptions import ObjectDoesNotExist
 from importlib import import_module
+
+from django.apps import apps
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
+from django.dispatch import Signal
+
+from .registries import registry
+
 # Sent after document indexing is completed
 post_index = Signal()
 
-class BaseSignalProcessor(object):
+class BaseSignalProcessor:
     """Base signal processor.
 
     By default, does nothing with signals but provides underlying
@@ -158,11 +158,8 @@ else:
                     related = None
                 if related is not None:
                     doc_instance.update(related)
-                    if isinstance(related, models.Model):
-                        object_list = [related]
-                    else:
-                        object_list = related
-                    bulk_data = list(doc_instance._get_actions(object_list, action)),
+                    object_list = related if not isinstance(related, models.Model) else [related]
+                    bulk_data = list(doc_instance._get_actions(object_list, action))
                     self.registry_delete_task.delay(doc_instance.__class__.__name__, bulk_data)
 
         @shared_task()
@@ -174,8 +171,7 @@ else:
             but the delete needs to be processed before the database record is deleted to obtain the associated data.
             """
             doc_instance = import_module(doc_label)
-            parallel = True
-            doc_instance._bulk(bulk_data, parallel=parallel)
+            doc_instance._bulk(data, parallel=True)
 
         def prepare_registry_delete_task(self, instance):
             """
@@ -190,11 +186,8 @@ else:
                     related = None
                 if related is not None:
                     doc_instance.update(related)
-                    if isinstance(related, models.Model):
-                        object_list = [related]
-                    else:
-                        object_list = related
-                    bulk_data = list(doc_instance.get_actions(object_list, action)),
+                    object_list = related if not isinstance(related, models.Model) else [related]
+                    bulk_data = list(doc_instance.get_actions(object_list, action))
                     self.registry_delete_task.delay(doc_instance.__class__.__name__, bulk_data)
 
         @shared_task()
@@ -202,21 +195,15 @@ else:
             """Handle the update on the registry as a Celery task."""
             try:
                 model = apps.get_model(app_label, model_name)
+                registry.update(model.objects.get(pk=pk))
             except LookupError:
                 pass
-            else:
-                registry.update(
-                    model.objects.get(pk=pk)
-                )
 
         @shared_task()
         def registry_update_related_task(pk, app_label, model_name):
             """Handle the related update on the registry as a Celery task."""
             try:
                 model = apps.get_model(app_label, model_name)
+                registry.update_related(model.objects.get(pk=pk))
             except LookupError:
                 pass
-            else:
-                registry.update_related(
-                    model.objects.get(pk=pk)
-                )

@@ -1,16 +1,15 @@
 from django.db.models import Case, When
 from django.db.models.fields import IntegerField
-
 from elasticsearch_dsl import Search as DSLSearch
 
 
 class Search(DSLSearch):
     def __init__(self, **kwargs):
         self._model = kwargs.pop('model', None)
-        super(Search, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _clone(self):
-        s = super(Search, self)._clone()
+        s = super()._clone()
         s._model = self._model
         return s
 
@@ -22,8 +21,7 @@ class Search(DSLSearch):
         s = self
         if s._model is not queryset.model:
             raise TypeError(
-                'Unexpected queryset model '
-                '(should be: %s, got: %s)' % (s._model, queryset.model)
+                f'Unexpected queryset model (should be: {s._model}, got: {queryset.model})'
             )
 
         # Do not query again if the es result is already cached

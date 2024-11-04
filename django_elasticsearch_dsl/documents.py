@@ -4,7 +4,6 @@ from collections import deque
 from fnmatch import fnmatch
 from functools import partial
 
-from django import VERSION as DJANGO_VERSION
 from django.db import models
 from elasticsearch.helpers import bulk, parallel_bulk
 from elasticsearch_dsl import Document as DSLDocument
@@ -50,10 +49,8 @@ model_field_class_to_field_class = {
     models.TimeField: TimeField,
     models.URLField: TextField,
     models.UUIDField: KeywordField,
+    models.PositiveBigIntegerField: LongField,
 }
-
-if DJANGO_VERSION >= (3.1,):
-    model_field_class_to_field_class[models.PositiveBigIntegerField] = LongField
 
 
 class DocType(DSLDocument):
@@ -103,7 +100,7 @@ class DocType(DSLDocument):
         """
         qs = self.get_queryset()
         kwargs = {}
-        if DJANGO_VERSION >= (2,) and self.django.queryset_pagination:
+        if self.django.queryset_pagination:
             kwargs = {'chunk_size': self.django.queryset_pagination}
         return qs.iterator(**kwargs)
 

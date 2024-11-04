@@ -1,18 +1,15 @@
 from collections import defaultdict
 from copy import deepcopy
 
-from itertools import chain
-
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from elasticsearch_dsl import AttrDict
-from six import itervalues, iterkeys, iteritems
 
 from django_elasticsearch_dsl.exceptions import RedeclaredFieldError
+
 from .apps import DEDConfig
 
 
-class DocumentRegistry(object):
+class DocumentRegistry:
     """
     Registry of models classes to a set of Document classes.
     """
@@ -28,7 +25,7 @@ class DocumentRegistry(object):
         for related in doc_class.django.related_models:
             self._related_models[related].add(doc_class.django.model)
 
-        for idx, docs in iteritems(self._indices):
+        for idx, docs in self._indices.items():
             if index._name == idx._name:
                 docs.add(doc_class)
                 return
@@ -36,11 +33,10 @@ class DocumentRegistry(object):
         self._indices[index].add(doc_class)
 
     def register_document(self, document):
-        django_meta = getattr(document, 'Django')
+        django_meta = getattr(document, 'Django', None)
         # Raise error if Django class can not be found
         if not django_meta:
-            message = "You must declare the Django class inside {}".format(document.__name__)
-            raise ImproperlyConfigured(message)
+            raise ImproperlyConfigured(f"You must declare the Django class inside {document.__name__}")
 
         # Keep all django related attribute in a django_attr AttrDict
         data = {'model': getattr(document.Django, 'model')}
@@ -55,25 +51,21 @@ class DocumentRegistry(object):
 
         for field_name in model_field_names:
             if field_name in mapping_fields:
-                raise RedeclaredFieldError(
-                    "You cannot redeclare the field named '{}' on {}"
-                    .format(field_name, document.__name__)
-                )
+                raise RedeclaredFieldError(f"You cannot redeclare the field named '{field_name}' on {document.__name__}")
 
             django_field = django_attr.model._meta.get_field(field_name)
-
             field_instance = document.to_field(field_name, django_field)
             document._doc_type.mapping.field(field_name, field_instance)
 
-        django_attr.ignore_signals = getattr(django_meta, "ignore_signals", False)
-        django_attr.auto_refresh = getattr(django_meta,
-                                           "auto_refresh", DEDConfig.auto_refresh_enabled())
-        django_attr.related_models = getattr(django_meta, "related_models", [])
-        django_attr.queryset_pagination = getattr(django_meta, "queryset_pagination", None)
+        django_attr.update({
+            'ignore_signals': getattr(django_meta, "ignore_signals", False),
+            'auto_refresh': getattr(django_meta, "auto_refresh", DEDConfig.auto_refresh_enabled()),
+            'related_models': getattr(django_meta, "related_models", []),
+            'queryset_pagination': getattr(django_meta, "queryset_pagination", None),
+        })
 
         # Add django attribute in the document class with all the django attribute
         setattr(document, 'django', django_attr)
-
         # Set the fields of the mappings
         fields = document._doc_type.mapping.properties.properties.to_dict()
         setattr(document, '_fields', fields)
@@ -84,7 +76,6 @@ class DocumentRegistry(object):
 
         # Register the document and index class to our registry
         self.register(index=document._index, doc_class=document)
-
         return document
 
     def _get_related_doc(self, instance):
@@ -152,27 +143,22 @@ class DocumentRegistry(object):
         Get all documents in the registry or the documents for a list of models
         """
         if models is not None:
-            return set(chain.from_iterable(self._models[model] for model in models
-                                           if model in self._models))
-        return set(chain.from_iterable(itervalues(self._indices)))
+            return {doc for model in models if model in self._models for doc in self._models[model]}
+        return {doc for docs in self._indices.values() for doc in docs}
 
     def get_models(self):
         """
         Get all models in the registry
         """
-        return set(iterkeys(self._models))
+        return set(self._models.keys())
 
     def get_indices(self, models=None):
         """
         Get all indices in the registry or the indices for a list of models
         """
         if models is not None:
-            return set(
-                indice for indice, docs in iteritems(self._indices)
-                for doc in docs if doc.django.model in models
-            )
-
-        return set(iterkeys(self._indices))
+            return {indice for model in models for indice, docs in self._indices.items() for doc in docs if doc.django.model == model}
+        return set(self._indices.keys())
 
     def __contains__(self, model):
         """

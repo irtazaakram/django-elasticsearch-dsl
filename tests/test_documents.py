@@ -2,14 +2,9 @@ import json
 from unittest import TestCase
 from unittest import SkipTest
 
-
-import django
 from django.db import models
 
-if django.VERSION < (4, 0):
-    from django.utils.translation import ugettext_lazy as _
-else:
-    from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import GeoPoint, InnerDoc
 from mock import patch, Mock
 
@@ -18,7 +13,6 @@ from django_elasticsearch_dsl.documents import DocType
 from django_elasticsearch_dsl.exceptions import (ModelFieldNotMappedError,
                                                  RedeclaredFieldError)
 from django_elasticsearch_dsl.registries import registry
-from tests import ES_MAJOR_VERSION
 
 from .models import Article
 
@@ -151,19 +145,17 @@ class BaseDocTypeTestCase(object):
             doc.to_field('manufacturer', Car._meta.get_field('manufacturer'))
 
     def test_mapping(self):
-        text_type = 'string' if ES_MAJOR_VERSION == 2 else 'text'
-
         self.assertEqual(
             CarDocument._doc_type.mapping.to_dict(), {
                 'properties': {
                     'name': {
-                        'type': text_type
+                        'type': 'text'
                     },
                     'color': {
-                        'type': text_type
+                        'type': 'text'
                     },
                     'type': {
-                        'type': text_type
+                        'type': 'text'
                     },
                     'price': {
                         'type': 'double'
