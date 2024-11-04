@@ -1,10 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from django.db import models
-from six import python_2_unicode_compatible
 
 
-@python_2_unicode_compatible
+COUNTRIES = {
+    'FR': 'France',
+    'UK': 'United Kingdom',
+    'ES': 'Spain',
+    'IT': 'Italy',
+}
+
+
 class Car(models.Model):
     TYPE_CHOICES = (
         ('se', "Sedan"),
@@ -29,20 +33,11 @@ class Car(models.Model):
         return self.name
 
 
-COUNTRIES = {
-    'FR': 'France',
-    'UK': 'United Kingdom',
-    'ES': 'Spain',
-    'IT': 'Italya',
-}
-
-
-@python_2_unicode_compatible
 class Manufacturer(models.Model):
     name = models.CharField(max_length=255)
     country_code = models.CharField(max_length=2)
-    logo = models.ImageField(blank=True)
-    created = models.DateField()
+    logo = models.ImageField(blank=True, upload_to='logos/')
+    created = models.DateField(auto_now_add=True)
 
     def country(self):
         return COUNTRIES.get(self.country_code, self.country_code)
@@ -51,16 +46,14 @@ class Manufacturer(models.Model):
         return self.name
 
 
-@python_2_unicode_compatible
 class Category(models.Model):
     title = models.CharField(max_length=255)
-    slug = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
 
     def __str__(self):
         return self.title
 
 
-@python_2_unicode_compatible
 class Ad(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()

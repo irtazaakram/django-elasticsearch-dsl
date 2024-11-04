@@ -1,50 +1,28 @@
 from types import MethodType
 
-import django
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models.fields.files import FieldFile
-
-if django.VERSION < (4, 0):
-    from django.utils.encoding import force_text as force_str
-else:
-    from django.utils.encoding import force_str
+from django.utils.encoding import force_str
 from django.utils.functional import Promise
-from elasticsearch_dsl.field import (
-    Boolean,
-    Byte,
-    Completion,
-    Date,
-    Double,
-    Field,
-    Float,
-    GeoPoint,
-    GeoShape,
-    Integer,
-    Ip,
-    Long,
-    Nested,
-    Object,
-    ScaledFloat,
-    Short,
-    Keyword,
-    Text,
-    SearchAsYouType,
-)
+from elasticsearch_dsl.field import (Boolean, Byte, Completion, Date, Double,
+                                     Field, Float, GeoPoint, GeoShape, Integer,
+                                     Ip, Keyword, Long, Nested, Object,
+                                     ScaledFloat, SearchAsYouType, Short, Text)
 
 from .exceptions import VariableLookupError
 
 
 class DEDField(Field):
     def __init__(self, attr=None, **kwargs):
-        super(DEDField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._path = attr.split('.') if attr else []
 
     def __setattr__(self, key, value):
         if key == 'get_value_from_instance':
             self.__dict__[key] = value
         else:
-            super(DEDField, self).__setattr__(key, value)
+            super().__setattr__(key, value)
 
     def get_value_from_instance(self, instance, field_value_to_ignore=None):
         """
@@ -57,10 +35,7 @@ class DEDField(Field):
         for attr in self._path:
             try:
                 instance = instance[attr]
-            except (
-                TypeError, AttributeError,
-                KeyError, ValueError, IndexError
-            ):
+            except (TypeError, AttributeError, KeyError, ValueError, IndexError):
                 try:
                     instance = getattr(instance, attr)
                 except ObjectDoesNotExist:
@@ -68,14 +43,10 @@ class DEDField(Field):
                 except (TypeError, AttributeError):
                     try:
                         instance = instance[int(attr)]
-                    except (
-                        IndexError, ValueError,
-                        KeyError, TypeError
-                    ):
+                    except (IndexError, ValueError, KeyError, TypeError):
                         if self._required:
                             raise VariableLookupError(
-                                "Failed lookup for key [{}] in "
-                                "{!r}".format(attr, instance)
+                                f"Failed lookup for key [{attr}] in {instance!r}"
                             )
                         return None
 
@@ -102,57 +73,40 @@ class ObjectField(DEDField, Object):
 
         if hasattr(self, 'properties'):
             for name, field in self.properties.to_dict().items():
-                if not isinstance(field, DEDField):
-                    continue
-
-                if field._path == []:
-                    field._path = [name]
-
-                data[name] = field.get_value_from_instance(
-                    obj, field_value_to_ignore
-                )
+                if isinstance(field, DEDField):
+                    if not field._path:
+                        field._path = [name]
+                    data[name] = field.get_value_from_instance(obj, field_value_to_ignore)
         else:
             doc_instance = self._doc_class()
-            for name, field in self._doc_class._doc_type.mapping.properties._params.get(
-                'properties', {}).items():  # noqa
-                if not isinstance(field, DEDField):
-                    continue
+            for name, field in self._doc_class._doc_type.mapping.properties._params.get('properties', {}).items():
+                if isinstance(field, DEDField):
+                    if not field._path:
+                        field._path = [name]
+                    # This allows for retrieving data from an InnerDoc with prepare_field_name functions.
+                    prep_func = getattr(doc_instance, f'prepare_{name}', None)
 
-                if field._path == []:
-                    field._path = [name]
+                    if prep_func:
+                        data[name] = prep_func(obj)
+                    else:
+                        data[name] = field.get_value_from_instance(obj, field_value_to_ignore)
 
-                # This allows for retrieving data from an InnerDoc with prepare_field_name functions.
-                prep_func = getattr(doc_instance, 'prepare_%s' % name, None)
-
-                if prep_func:
-                    data[name] = prep_func(obj)
-                else:
-                    data[name] = field.get_value_from_instance(
-                        obj, field_value_to_ignore
-                    )
-
-        # This allows for ObjectFields to be indexed from dicts with
-        # dynamic keys (i.e. keys/fields not defined in 'properties')
         if not data and obj and isinstance(obj, dict):
             data = obj
 
         return data
 
     def get_value_from_instance(self, instance, field_value_to_ignore=None):
-        objs = super(ObjectField, self).get_value_from_instance(
-            instance, field_value_to_ignore
-        )
+        objs = super().get_value_from_instance(instance, field_value_to_ignore)
 
         if objs is None:
             return {}
-        try:
-            is_iterable = bool(iter(objs))
-        except TypeError:
-            is_iterable = False
+        
+        is_iterable = hasattr(objs, '__iter__') and not isinstance(objs, dict)
 
         # While dicts are iterable, they need to be excluded here so
         # their full data is indexed
-        if is_iterable and not isinstance(objs, dict):
+        if is_iterable:
             return [
                 self._get_inner_field_data(obj, field_value_to_ignore)
                 for obj in objs if obj != field_value_to_ignore
@@ -245,10 +199,9 @@ class SearchAsYouTypeField(DEDField, SearchAsYouType):
     pass
 
 
-class FileFieldMixin(object):
+class FileFieldMixin:
     def get_value_from_instance(self, instance, field_value_to_ignore=None):
-        _file = super(FileFieldMixin, self).get_value_from_instance(
-            instance, field_value_to_ignore)
+        _file = super().get_value_from_instance(instance, field_value_to_ignore)
 
         if isinstance(_file, FieldFile):
             return _file.url if _file else ''
@@ -261,8 +214,7 @@ class FileField(FileFieldMixin, DEDField, Text):
 
 class TimeField(KeywordField):
     def get_value_from_instance(self, instance, field_value_to_ignore=None):
-        time = super(TimeField, self).get_value_from_instance(instance,
-                                                              field_value_to_ignore)
+        time = super().get_value_from_instance(instance, field_value_to_ignore)
 
         if time:
             return time.isoformat()

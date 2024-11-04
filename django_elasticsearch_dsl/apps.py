@@ -1,7 +1,6 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django.utils.module_loading import import_string
-
 from elasticsearch_dsl.connections import connections
 
 
@@ -13,6 +12,7 @@ class DEDConfig(AppConfig):
     def ready(self):
         self.module.autodiscover()
         connections.configure(**settings.ELASTICSEARCH_DSL)
+
         # Setup the signal processor.
         if not self.signal_processor:
             signal_processor_path = getattr(
