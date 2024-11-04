@@ -2,6 +2,11 @@
 
 History
 -------
+8.1.0 (2024-11-04)
+~~~~~~~~~~~~~~~~~~
+* Drop support for python 3.8, django 3.2
+* Added support for python 3.12 & 3.13, Django 5.1
+
 7.1.4 (2020-07-05)
 ~~~~~~~~~~~~~~~~~~
 * Configure Elasticsearch _id dynamically from document (#272)
